@@ -32,6 +32,10 @@ provider:
           name: CreateTodoRequest
           schema: ${file(models/create-todo-request.json)}
           description: "A Model validation for creating todo items"
+        UpdateTodoRequest:
+          name: UpdateTodoRequest
+          schema: ${file(models/update-todo-request.json)}
+          description: "A Model validation for updating todo items"
 
 custom:
   documentation:
@@ -44,6 +48,9 @@ custom:
       - name: CreateTodoRequest
         contentType: application/json
         schema: ${file(models/create-todo-request.json)}
+      - name: UpdateTodoRequest
+        contentType: application/json
+        schema: ${file(models/update-todo-request.json)}
 
 functions:
 
@@ -87,13 +94,33 @@ functions:
           - dynamodb:PutItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE_NAME}
 
-  # TODO: Configure this function
   UpdateTodo:
     handler: src/lambda/http/updateTodo.handler
     events:
       - http:
           method: patch
           path: todos/{todoId}
+          authorizer: Auth
+          cors: true
+          reqValidatorName: RequestBodyValidator
+          request:
+            schemas:
+              'application/json': UpdateTodoRequest
+          documentation:
+            summary: Update a todo item
+            description: Update a todo item
+            requestModels:
+              'application/json': UpdateTodoRequest
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:UpdateItem
+          - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE_NAME}
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE_NAME}/index/${self:provider.environment.TODOS_INDEX_NAME}
 
   # TODO: Configure this function
   DeleteTodo:
