@@ -1,4 +1,4 @@
-export interface TodoItem {
+export default interface TodoItem {
   userId: string
   todoId: string
   createdAt: string
