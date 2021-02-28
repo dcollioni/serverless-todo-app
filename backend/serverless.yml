@@ -4,6 +4,11 @@ service:
 plugins:
   - serverless-webpack
   - serverless-iam-roles-per-function
+  - serverless-reqvalidator-plugin
+  - serverless-aws-documentation
+
+package:
+  individually: true
 
 provider:
   name: aws
@@ -12,16 +17,39 @@ provider:
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'eu-west-1'}
 
+  tracing:
+    lambda: true
+    apiGateway: true
+
   environment:
     TODOS_TABLE_NAME: 'Todos-${self:provider.stage}'
     TODOS_INDEX_NAME: 'TodoIdIndex'
+
+  apiGateway:
+    request:
+      schemas:
+        CreateTodoRequest:
+          name: CreateTodoRequest
+          schema: ${file(models/create-todo-request.json)}
+          description: "A Model validation for creating todo items"
+
+custom:
+  documentation:
+    api:
+      info:
+        version: v1.0.0
+        title: Serverless Todo API
+        description: Serverless Todo API
+    models:
+      - name: CreateTodoRequest
+        contentType: application/json
+        schema: ${file(models/create-todo-request.json)}
 
 functions:
 
   Auth:
     handler: src/lambda/auth/auth0Authorizer.handler
 
-  # TODO: Configure this function
   GetTodos:
     handler: src/lambda/http/getTodos.handler
     events:
@@ -36,13 +64,28 @@ functions:
           - dynamodb:Query
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE_NAME}
 
-  # TODO: Configure this function
   CreateTodo:
     handler: src/lambda/http/createTodo.handler
     events:
       - http:
           method: post
           path: todos
+          authorizer: Auth
+          cors: true
+          reqValidatorName: RequestBodyValidator
+          request:
+            schemas:
+              'application/json': CreateTodoRequest
+          documentation:
+            summary: Create a new todo item
+            description: Create a new todo item
+            requestModels:
+              'application/json': CreateTodoRequest
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE_NAME}
 
   # TODO: Configure this function
   UpdateTodo:
@@ -70,6 +113,17 @@ functions:
 
 resources:
   Resources:
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,OPTIONS,POST'"
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+
     TodosDynamoDBTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -96,4 +150,13 @@ resources:
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
+
+    RequestBodyValidator:
+      Type: AWS::ApiGateway::RequestValidator
+      Properties:
+        Name: 'request-body-validator'
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ValidateRequestBody: true
+        ValidateRequestParameters: false
 

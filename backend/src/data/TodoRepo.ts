@@ -24,18 +24,18 @@ export default class TodoRepo {
       },
       ScanIndexForward: false
     }).promise()
-    
+
     return result.Items as TodoItem[]
   }
 
-  // async createGroup(group: Group): Promise<Group> {
-  //   await this.docClient.put({
-  //     TableName: this.groupsTable,
-  //     Item: group
-  //   }).promise()
+  async createTodo(todo: TodoItem): Promise<TodoItem> {
+    await this.docClient.put({
+      TableName: this.todosTable,
+      Item: todo
+    }).promise()
 
-  //   return group
-  // }
+    return todo
+  }
 }
 
 function createDynamoDBClient() {

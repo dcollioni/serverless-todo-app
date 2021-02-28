@@ -1,8 +1,7 @@
-// import * as uuid from 'uuid'
-
+import * as uuid from 'uuid'
 import TodoItem from '../models/TodoItem'
 import TodoRepo from '../data/TodoRepo'
-// import { CreateGroupRequest } from '../requests/CreateGroupRequest'
+import { CreateTodoRequest } from '../requests/CreateTodoRequest'
 import { parseUserId } from '../auth/utils'
 
 const todoRepo = new TodoRepo()
@@ -12,19 +11,20 @@ export async function getAllTodos(jwtToken: string): Promise<TodoItem[]> {
   return todoRepo.getAllTodos(userId)
 }
 
-// export async function createGroup(
-//   createGroupRequest: CreateGroupRequest,
-//   jwtToken: string
-// ): Promise<Group> {
+export async function createTodo(
+  createTodoRequest: CreateTodoRequest,
+  jwtToken: string
+): Promise<TodoItem> {
 
-//   const itemId = uuid.v4()
-//   const userId = getUserId(jwtToken)
+  const todoId = uuid.v4()
+  const userId = parseUserId(jwtToken)
 
-//   return await groupAccess.createGroup({
-//     id: itemId,
-//     userId: userId,
-//     name: createGroupRequest.name,
-//     description: createGroupRequest.description,
-//     timestamp: new Date().toISOString()
-//   })
-// }
+  return await todoRepo.createTodo({
+    todoId: todoId,
+    userId: userId,
+    name: createTodoRequest.name,
+    dueDate: createTodoRequest.dueDate,
+    createdAt: new Date().toISOString(),
+    done: false
+  })
+}
