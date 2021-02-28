@@ -1,6 +1,6 @@
 import * as AWS  from 'aws-sdk'
 import * as AWSXRay from 'aws-xray-sdk'
-import { DocumentClient, UpdateItemOutput } from 'aws-sdk/clients/dynamodb'
+import { DocumentClient, UpdateItemOutput, DeleteItemOutput } from 'aws-sdk/clients/dynamodb'
 
 const XAWS = AWSXRay.captureAWS(AWS)
 
@@ -40,22 +40,7 @@ export default class TodoRepo {
   }
 
   async updateTodo(todo: TodoUpdate, todoId: string, userId: string): Promise<UpdateItemOutput> {
-    const result = await this.docClient.query({
-      TableName: this.todosTable,
-      IndexName: this.todosIndex,
-      KeyConditionExpression: 'userId = :userId and todoId = :todoId',
-      ExpressionAttributeValues: {
-        ':userId': userId,
-        ':todoId': todoId
-      },
-      ScanIndexForward: false
-    }).promise()
-
-    if (result.Count !== 1) {
-      throw new Error('Unable to find todo item')
-    }
-
-    const item = result.Items[0]
+    const item = await this.findTodoItem(todoId, userId)
 
     return this.docClient.update({
       TableName: this.todosTable,
@@ -76,6 +61,41 @@ export default class TodoRepo {
       },
       ReturnValues: 'ALL_NEW'
     }).promise()
+  }
+
+  async deleteTodo(todoId: string, userId: string): Promise<DeleteItemOutput> {
+    const item = await this.findTodoItem(todoId, userId)
+
+    return this.docClient.delete({
+      TableName: this.todosTable,
+      Key: {
+        userId,
+        createdAt: item.createdAt
+      },
+      ConditionExpression: 'todoId = :todoId',
+      ExpressionAttributeValues: {
+        ":todoId": todoId
+      }
+    }).promise()
+  }
+
+  private async findTodoItem(todoId: string, userId: string): Promise<TodoItem> {
+    const result = await this.docClient.query({
+      TableName: this.todosTable,
+      IndexName: this.todosIndex,
+      KeyConditionExpression: 'userId = :userId and todoId = :todoId',
+      ExpressionAttributeValues: {
+        ':userId': userId,
+        ':todoId': todoId
+      },
+      ScanIndexForward: false
+    }).promise()
+
+    if (result.Count !== 1) {
+      throw new Error('Unable to find todo item')
+    }
+
+    return result.Items[0] as TodoItem
   }
 }
 

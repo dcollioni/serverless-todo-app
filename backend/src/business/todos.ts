@@ -4,7 +4,7 @@ import TodoRepo from '../data/TodoRepo'
 import { CreateTodoRequest } from '../requests/CreateTodoRequest'
 import { UpdateTodoRequest } from '../requests/UpdateTodoRequest'
 import { parseUserId } from '../auth/utils'
-import { UpdateItemOutput } from 'aws-sdk/clients/dynamodb'
+import { UpdateItemOutput, DeleteItemOutput } from 'aws-sdk/clients/dynamodb'
 
 const todoRepo = new TodoRepo()
 
@@ -13,7 +13,7 @@ export async function getAllTodos(jwtToken: string): Promise<TodoItem[]> {
   return todoRepo.getAllTodos(userId)
 }
 
-export async function createTodo(
+export function createTodo(
   createTodoRequest: CreateTodoRequest,
   jwtToken: string
 ): Promise<TodoItem> {
@@ -21,7 +21,7 @@ export async function createTodo(
   const todoId = uuid.v4()
   const userId = parseUserId(jwtToken)
 
-  return await todoRepo.createTodo({
+  return todoRepo.createTodo({
     todoId: todoId,
     userId: userId,
     name: createTodoRequest.name,
@@ -31,7 +31,7 @@ export async function createTodo(
   })
 }
 
-export async function updateTodo(
+export function updateTodo(
   updateTodoRequest: UpdateTodoRequest,
   todoId: string,
   jwtToken: string
@@ -39,9 +39,18 @@ export async function updateTodo(
 
   const userId = parseUserId(jwtToken)
 
-  return await todoRepo.updateTodo({
+  return todoRepo.updateTodo({
     name: updateTodoRequest.name,
     dueDate: updateTodoRequest.dueDate,
     done: updateTodoRequest.done
   }, todoId, userId)
+}
+
+export function deleteTodo(
+  todoId: string,
+  jwtToken: string
+): Promise<DeleteItemOutput> {
+
+  const userId = parseUserId(jwtToken)
+  return todoRepo.deleteTodo(todoId, userId)
 }
